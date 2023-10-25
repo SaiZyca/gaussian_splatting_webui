@@ -4,7 +4,6 @@ set HTTP_PROXY=http://192.168.8.3:3128
 set HTTPS_PROXY=http://192.168.8.3:3128
 set NO_PROXY=localhost,127.0.0.1,192.168.1.0/24,192.168.2.0/24,192.168.7.0/24
 
-
 set PYTHON=.\venv\Scripts\python.exe
 call .\venv\Scripts\activate.bat
 

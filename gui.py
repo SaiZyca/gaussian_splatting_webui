@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import gradio as gr
 import os
-from modules import cmd_args, ui_training_picker
+from modules import cmd_args, ui_colmap
 from pathlib import Path
 
 
@@ -32,8 +32,8 @@ def UI(**kwargs):
     os.makedirs(train_project_folder, exist_ok=True)
 
     with interface:
-        with gr.Tab('Training Picker'):
-            ui_training_picker.ui()
+        with gr.Tab('Colmap'):
+            ui_colmap.ui()
         # with gr.Tab('clip interrogator'):
         #     from modules import ui_clip_interrogator
             # ui_clip_interrogator.ui()
