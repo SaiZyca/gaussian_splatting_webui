@@ -21,9 +21,9 @@ def copy_files(source:list, destination_folder:str):
         
     return file_list
 
-def colmap_feature_extractor(colmap_bin_path, project_path, colmap_camera_model, colmap_camera_params):
-    colmap_db = r"%s\colmap.db" % project_path
-    image_path = r"%s\images" % project_path
+def colmap_feature_extractor(colmap_bin_path, project_folder, colmap_camera_model, colmap_camera_params):
+    colmap_db = r"%s\colmap\colmap.db" % project_folder
+    image_path = r"%s\images" % project_folder
     
     command = [colmap_bin_path, "feature_extractor",
                     "--ImageReader.camera_model", colmap_camera_model, 
@@ -40,12 +40,14 @@ def colmap_feature_extractor(colmap_bin_path, project_path, colmap_camera_model,
     
     return command
 
-def colmap_match(colmap_bin_path, colmap_matcher, colmap_db, vocab_path):
+def colmap_match(colmap_bin_path, project_folder, colmap_matcher, vocab_path):
+    colmap_db = r"%s\colmap\colmap.db" % project_folder
+    
     command=[colmap_bin_path,
              "%s_matcher" % colmap_matcher,
              "--SiftMatching.guided_matching", "True",
              "--database_path", colmap_db,
-    ]
+            ]
     if vocab_path:
         command.append("--VocabTreeMatching.vocab_tree_path")
         command.append(vocab_path)
@@ -53,14 +55,46 @@ def colmap_match(colmap_bin_path, colmap_matcher, colmap_db, vocab_path):
     # print (command)
     subprocess.run(command)
 
-def colmap_mapper():
-    pass
+def colmap_mapper(colmap_bin_path, project_folder, vocab_path=""):
+    colmap_db = r"%s\colmap\colmap.db" % project_folder
+    image_path = r"%s\images" % project_folder
+    sparse_path = r"%s\sparse" % project_folder
+    
+    Path(sparse_path).mkdir(parents=True, exist_ok=True)
+    
+    command=[colmap_bin_path, "mapper",
+             "--database_path", colmap_db,
+             "--image_path", image_path,
+             "--output_path", sparse_path
+            ]
+    if vocab_path:
+        command.append("--VocabTreeMatching.vocab_tree_path")
+        command.append(vocab_path)
 
-def colmap_bundle_adjuster():
-    pass
+    subprocess.run(command)
 
-def colmap_model_converter():
-    pass
+def colmap_bundle_adjuster(colmap_bin_path, project_folder):
+    sparse_path = r"%s\sparse\0" % project_folder
+    
+    command=[colmap_bin_path, "bundle_adjuster",
+             "--input_path", sparse_path,
+             "--output_path", sparse_path,
+             "--BundleAdjustment.refine_principal_point", "1",
+            ]
+
+    subprocess.run(command)
+
+def colmap_model_converter(colmap_bin_path, project_folder):
+    sparse_path = r"%s\sparse\0" % project_folder
+    output_path = r"%s\colmap\colmap_text" % project_folder
+    
+    command=[colmap_bin_path, "model_converter",
+             "--input_path", sparse_path,
+             "--output_path", output_path,
+             "--output_type", "TXT",
+            ]
+
+    subprocess.run(command)
 
 def colmap_images(project_folder, files, \
     colmap_bin_path, colmap_matcher, colmap_camera_model, colmap_camera_params, colmap_db, vocab_path, aabb_scale):
@@ -72,19 +106,16 @@ def colmap_images(project_folder, files, \
     image_path = r"%s\images" % (project_folder)
     copyed_files = copy_files(source, image_path)
     colmap_feature_extractor (colmap_bin_path, project_folder, colmap_camera_model, colmap_camera_params)
-    colmap_match(colmap_bin_path, colmap_matcher, colmap_db, vocab_path)
+    colmap_match(colmap_bin_path, project_folder, colmap_matcher, vocab_path)
     # camera_data = post_camera_txt(project_folder)
     # post_image_txt(project_folder, aabb_scale, SKIP_EARLY, OUT_PATH)
 
 def create_project_folders(project_folder):
-    images_folder = r"%s\images" % project_folder
-    Path(images_folder).mkdir(parents=True, exist_ok=True)
-    colmap_folder = r"%s\colmap" % project_folder
-    Path(r"%s\colmap_sparse" % colmap_folder).mkdir(parents=True, exist_ok=True)
-    Path(r"%s\colmap_text" % colmap_folder).mkdir(parents=True, exist_ok=True)
-    Path(r"%s\sparse" % colmap_folder).mkdir(parents=True, exist_ok=True)
     
-    
+    Path(r"%s\images" % project_folder).mkdir(parents=True, exist_ok=True)
+    Path(r"%s\colmap" % project_folder).mkdir(parents=True, exist_ok=True)
+    Path(r"%s\colmap\colmap_text" % project_folder).mkdir(parents=True, exist_ok=True)
+    Path(r"%s\sparse" % project_folder).mkdir(parents=True, exist_ok=True)
     
 def variance_of_laplacian(image):
     return cv2.Laplacian(image, cv2.CV_64F).var()
@@ -137,10 +168,8 @@ def closest_point_2_lines(oa, da, ob, db): # returns point closest to both rays 
         tb = 0
     return (oa+ta*da+ob+tb*db) * 0.5, denom
 
-def post_camera_txt(project_folder):
-    camera_txt = r"%s\\colmap\colmap_text\cameras.txt" % project_folder
-    Path(camera_txt).parent.mkdir(parents=True, exist_ok=True)
-    
+def get_camera_data(project_folder):
+    camera_txt = r"%s\colmap\colmap_text\cameras.txt" % project_folder   
     camera_data = dict()
     
     with open(camera_txt, "r") as f:
@@ -238,7 +267,7 @@ def post_camera_txt(project_folder):
     return camera_data
     # print(f"camera:\n\tres={w,h}\n\tcenter={cx,cy}\n\tfocal={fl_x,fl_y}\n\tfov={fovx,fovy}\n\tk={k1,k2} p={p1,p2} ")
     
-def post_image_txt(project_folder, AABB_SCALE, SKIP_EARLY, OUT_PATH, camera_data:dict, keep_colmap_coords=True, mask_categories=[]):
+def export_transforms_data(project_folder, aabb_scale, camera_data:dict, SKIP_EARLY=0, keep_colmap_coords=True, mask_categories=[]):
     image_txt = r"%s\colmap\colmap_text\images.txt" % project_folder
     image_folder = r"%s\images" % project_folder
     OUT_PATH = r"%s\transforms.json" % project_folder
@@ -262,7 +291,7 @@ def post_image_txt(project_folder, AABB_SCALE, SKIP_EARLY, OUT_PATH, camera_data
             "cy": camera_data["cy"],
             "w": camera_data["w"],
             "h": camera_data["h"],
-            "aabb_scale": AABB_SCALE,
+            "aabb_scale": aabb_scale,
             "frames": [],
         }
 
