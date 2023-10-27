@@ -119,7 +119,7 @@ def colmap_model_converter(colmap_bin_path, project_folder):
     
     print ("========== colmap_model_converter Finished ==========")
 
-def run_colmap_project(project_folder, colmap_bin_path, colmap_matcher, colmap_camera_model, colmap_camera_params, vocab_path, aabb_scale, process_steps):
+def run_colmap_project(project_folder, colmap_bin_path, colmap_matcher, colmap_camera_model, colmap_camera_params, vocab_path, aabb_scale, gs_repo_path, process_steps, cmd_args):
     if not Path(colmap_bin_path).is_file():
         return print("can't find colmap binary")
     if 'colmap' in process_steps:
@@ -135,7 +135,7 @@ def run_colmap_project(project_folder, colmap_bin_path, colmap_matcher, colmap_c
         print ("========== images colmap Finished ==========")
         
     if 'train gaussian splatting' in process_steps:
-        train_gaussian_splatting(r".\repositories\gaussian-splatting", project_folder, "")
+        train_gaussian_splatting(gs_repo_path, project_folder, cmd_args)
         
         print ("========== train gaussian splatting Finished ==========")
         

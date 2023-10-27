@@ -8,6 +8,8 @@ def colmap_ui():
             with gr.Group():
                 with gr.Row():
                     colmap_bin_path = gr.Textbox(label="colmap binary path", value=r".\external\COLMAP\COLMAP-3.8-windows-cuda\COLMAP.bat", interactive=True)
+                    gs_repo_path = gr.Textbox(label="Gaussian Splatting Repo path", value=r".\repositories\gaussian-splatting", interactive=True)
+                    cmd_args = gr.Textbox(label='extra cmd args', value="")
                 with gr.Row():
                     colmap_matcher = gr.Dropdown(label="colmap matcher", value="sequential", choices=["exhaustive","sequential","spatial","transitive","vocab_tree"], interactive=True)
                     colmap_camera_model = gr.Dropdown(label="colmap camera model", value="SIMPLE_PINHOLE", choices=["SIMPLE_PINHOLE", "PINHOLE", "SIMPLE_RADIAL", "RADIAL", "OPENCV", "SIMPLE_RADIAL_FISHEYE", "RADIAL_FISHEYE", "OPENCV_FISHEYE"], interactive=True)
@@ -30,7 +32,8 @@ def colmap_ui():
                                 show_progress="hidden")
         
         run_colmap_project_btn.click(op_colmap.run_colmap_project,
-                                    inputs=[project_folder,colmap_bin_path, colmap_matcher, colmap_camera_model, colmap_camera_params, vocab_path, aabb_scale, process_steps],
+                                    inputs=[project_folder,colmap_bin_path, colmap_matcher, colmap_camera_model, colmap_camera_params, vocab_path, aabb_scale,
+                                            gs_repo_path, process_steps, cmd_args],
                                     outputs=[],
                                     )      
 

@@ -32,12 +32,8 @@ def UI(**kwargs):
     os.makedirs(train_project_folder, exist_ok=True)
 
     with interface:
-        with gr.Tab('Colmap'):
+        with gr.Tab('Colmap to Gaussian Splatting'):
             ui_colmap.ui()
-        with gr.Tab('Gaussian Splatting'):
-            ui_gaussian_splatting.ui()
-
-
 
     # Show the interface
     launch_kwargs = {}
