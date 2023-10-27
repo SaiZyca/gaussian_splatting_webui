@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import gradio as gr
 import os
-from modules import cmd_args, ui_colmap
+from modules import cmd_args, ui_colmap, ui_gaussian_splatting
 from pathlib import Path
 
 
@@ -34,11 +34,9 @@ def UI(**kwargs):
     with interface:
         with gr.Tab('Colmap'):
             ui_colmap.ui()
-        # with gr.Tab('clip interrogator'):
-        #     from modules import ui_clip_interrogator
-            # ui_clip_interrogator.ui()
-        # with gr.Tab('Avatar Trainer'):
-        #     ui_train_avatar.ui()
+        with gr.Tab('Gaussian Splatting'):
+            ui_gaussian_splatting.ui()
+
 
 
     # Show the interface
@@ -46,7 +44,7 @@ def UI(**kwargs):
     username = kwargs.get('username')
     password = kwargs.get('password')
     server_port = kwargs.get('server_port', 0)
-    inbrowser = kwargs.get('inbrowser', False)
+    inbrowser = kwargs.get('inbrowser', True)
     share = kwargs.get('share', False)
     server_name = kwargs.get('listen')
 
@@ -60,7 +58,6 @@ def UI(**kwargs):
     if share:
         launch_kwargs['share'] = share
         
-    
     interface.launch(**launch_kwargs)
 
 if __name__ == '__main__':

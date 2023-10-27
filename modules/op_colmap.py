@@ -11,6 +11,21 @@ from pathlib import Path
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 SCRIPTS_FOLDER = os.path.join(ROOT_DIR, "scripts")
 
+def train_gaussian_splatting(gs_repo_path, project_folder, cmd_args):
+    trainer_path = r"%s\train.py" % gs_repo_path
+    model_path = r"%s\gs" % project_folder
+    
+    command = "python %s --source_path %s --model_path %s %s" % (trainer_path, project_folder, model_path, cmd_args)
+    
+    try:
+        result = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE).stdout.read()
+        result.check_returncode()
+    except subprocess.CalledProcessError as e:
+        print ( "Error:\nreturn code: ", e.returncode, "\nOutput: ", e.stderr.decode("utf-8") )
+        raise
+    
+    print ("========== train_gaussian_splatting Finished ==========")
+
 def copy_files(source:list, destination_folder:str):
     file_list = list()
     for file in source:
@@ -38,7 +53,7 @@ def colmap_feature_extractor(colmap_bin_path, project_folder, colmap_camera_mode
     # print (command)
     subprocess.run(command)
     
-    return command
+    print ("========== colmap_feature_extractor Finished ==========")
 
 def colmap_match(colmap_bin_path, project_folder, colmap_matcher, vocab_path):
     colmap_db = r"%s\colmap\colmap.db" % project_folder
@@ -54,6 +69,8 @@ def colmap_match(colmap_bin_path, project_folder, colmap_matcher, vocab_path):
         
     # print (command)
     subprocess.run(command)
+    
+    print ("========== colmap_match Finished ==========")
 
 def colmap_mapper(colmap_bin_path, project_folder, vocab_path=""):
     colmap_db = r"%s\colmap\colmap.db" % project_folder
@@ -72,6 +89,8 @@ def colmap_mapper(colmap_bin_path, project_folder, vocab_path=""):
         command.append(vocab_path)
 
     subprocess.run(command)
+    
+    print ("========== colmap_mapper Finished ==========")
 
 def colmap_bundle_adjuster(colmap_bin_path, project_folder):
     sparse_path = r"%s\sparse\0" % project_folder
@@ -83,6 +102,8 @@ def colmap_bundle_adjuster(colmap_bin_path, project_folder):
             ]
 
     subprocess.run(command)
+    
+    print ("========== colmap_bundle_adjuster Finished ==========")
 
 def colmap_model_converter(colmap_bin_path, project_folder):
     sparse_path = r"%s\sparse\0" % project_folder
@@ -95,9 +116,33 @@ def colmap_model_converter(colmap_bin_path, project_folder):
             ]
 
     subprocess.run(command)
+    
+    print ("========== colmap_model_converter Finished ==========")
+
+def run_colmap_project(project_folder, colmap_bin_path, colmap_matcher, colmap_camera_model, colmap_camera_params, vocab_path, aabb_scale, process_steps):
+    if not Path(colmap_bin_path).is_file():
+        return print("can't find colmap binary")
+    if 'colmap' in process_steps:
+        create_project_folders(project_folder)
+        colmap_feature_extractor (colmap_bin_path, project_folder, colmap_camera_model, colmap_camera_params)
+        colmap_match(colmap_bin_path, project_folder, colmap_matcher, vocab_path)
+        colmap_mapper(colmap_bin_path, project_folder)
+        colmap_bundle_adjuster(colmap_bin_path, project_folder)
+        colmap_model_converter(colmap_bin_path, project_folder)
+        camera_data = get_camera_data(project_folder)
+        export_transforms_data(project_folder, aabb_scale, camera_data)
+        
+        print ("========== images colmap Finished ==========")
+        
+    if 'train gaussian splatting' in process_steps:
+        train_gaussian_splatting(r".\repositories\gaussian-splatting", project_folder, "")
+        
+        print ("========== train gaussian splatting Finished ==========")
+        
+    print ("========== All Process Finished ==========")
 
 def colmap_images(project_folder, files, \
-    colmap_bin_path, colmap_matcher, colmap_camera_model, colmap_camera_params, colmap_db, vocab_path, aabb_scale):
+    colmap_bin_path, colmap_matcher, colmap_camera_model, colmap_camera_params, vocab_path, aabb_scale):
     if not Path(colmap_bin_path).is_file():
         return print("can't find colmap binary")
     
@@ -107,7 +152,9 @@ def colmap_images(project_folder, files, \
     copyed_files = copy_files(source, image_path)
     colmap_feature_extractor (colmap_bin_path, project_folder, colmap_camera_model, colmap_camera_params)
     colmap_match(colmap_bin_path, project_folder, colmap_matcher, vocab_path)
-    # camera_data = post_camera_txt(project_folder)
+    camera_data = get_camera_data(project_folder)
+    export_transforms_data(project_folder, aabb_scale, camera_data)
+    
     # post_image_txt(project_folder, aabb_scale, SKIP_EARLY, OUT_PATH)
 
 def create_project_folders(project_folder):

@@ -2,3 +2,5 @@ external/
 venv/
 modules/__pycache__/
 _project/
+repositories/
+output/
