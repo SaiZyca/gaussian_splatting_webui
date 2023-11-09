@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import sys
 import subprocess
@@ -11,6 +12,19 @@ from pathlib import Path
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 SCRIPTS_FOLDER = os.path.join(ROOT_DIR, "scripts")
 
+def metashap_process(metashape_bin_path, metashape_process_steps, metashape_cmd_args, project_folder):
+    metashape_script_file = r'.\modules\extra_metashape_workflow.py'
+    
+    command = r"%s -r %s %s %s" % (metashape_bin_path, metashape_script_file, project_folder, metashape_process_steps)
+    # command = [metashape_bin_path, "-r", metashape_script_file, project_folder, metashape_process_steps]
+
+    print (command)
+    subprocess.run(command)
+    
+    print ("========== train_gaussian_splatting Finished ==========")
+    
+
+
 def train_gaussian_splatting(gs_repo_path, project_folder, cmd_args):
     trainer_path = r"%s\train.py" % gs_repo_path
     model_path = r"%s\gs" % project_folder
@@ -19,10 +33,10 @@ def train_gaussian_splatting(gs_repo_path, project_folder, cmd_args):
     
     try:
         result = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE).stdout.read()
-        result.check_returncode()
     except subprocess.CalledProcessError as e:
         print ( "Error:\nreturn code: ", e.returncode, "\nOutput: ", e.stderr.decode("utf-8") )
         raise
+    
     
     print ("========== train_gaussian_splatting Finished ==========")
 
@@ -119,10 +133,15 @@ def colmap_model_converter(colmap_bin_path, project_folder):
     
     print ("========== colmap_model_converter Finished ==========")
 
-def run_colmap_project(project_folder, colmap_bin_path, colmap_matcher, colmap_camera_model, colmap_camera_params, vocab_path, aabb_scale, gs_repo_path, process_steps, cmd_args):
-    if not Path(colmap_bin_path).is_file():
-        return print("can't find colmap binary")
+def run_colmap_project(project_folder, process_steps, \
+    colmap_bin_path, colmap_matcher, colmap_camera_model, colmap_camera_params, vocab_path, aabb_scale, colmap_cmd_args, \
+    gs_repo_path, gs_cmd_args, \
+    metashape_bin_path, metashape_process_steps, metashape_cmd_args):
+    
     if 'colmap' in process_steps:
+        if not Path(colmap_bin_path).is_file():
+            return print("can't find colmap binary")
+        
         create_project_folders(project_folder)
         colmap_feature_extractor (colmap_bin_path, project_folder, colmap_camera_model, colmap_camera_params)
         colmap_match(colmap_bin_path, project_folder, colmap_matcher, vocab_path)
@@ -134,12 +153,22 @@ def run_colmap_project(project_folder, colmap_bin_path, colmap_matcher, colmap_c
         
         print ("========== images colmap Finished ==========")
         
+    if 'metashape' in process_steps:
+        if not Path(metashape_bin_path).is_file():
+            return print("can't find metashape binary")
+        
+        metashap_process(metashape_bin_path, metashape_process_steps, metashape_cmd_args, project_folder)
+        
+        print ("========== Metashape process Finished ==========")
+        
     if 'train gaussian splatting' in process_steps:
-        train_gaussian_splatting(gs_repo_path, project_folder, cmd_args)
+        train_gaussian_splatting(gs_repo_path, project_folder, colmap_cmd_args)
         
         print ("========== train gaussian splatting Finished ==========")
-        
+    
     print ("========== All Process Finished ==========")
+
+    return ("========== All Process Finished ==========")
 
 def colmap_images(project_folder, files, \
     colmap_bin_path, colmap_matcher, colmap_camera_model, colmap_camera_params, vocab_path, aabb_scale):

@@ -7,7 +7,7 @@ set NO_PROXY=localhost,127.0.0.1,192.168.1.0/24,192.168.2.0/24,192.168.7.0/24
 set PYTHON=.\venv\Scripts\python.exe
 call .\venv\Scripts\activate.bat
 
-python gui.py
+python gui.py --server_port 17777
 
 REM pip install -r requirements_m.txt
 cmd /k

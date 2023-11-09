@@ -28,8 +28,8 @@ def UI(**kwargs):
     interface = gr.Blocks(css=css, title='MoonShot Trainer GUI', theme=gr.themes.Default())
 
     root_path = Path().resolve()
-    train_project_folder = r"%s\train_project" % (root_path)
-    os.makedirs(train_project_folder, exist_ok=True)
+    project_folder = r"%s\_project" % (root_path)
+    os.makedirs(project_folder, exist_ok=True)
 
     with interface:
         with gr.Tab('Colmap to Gaussian Splatting'):
