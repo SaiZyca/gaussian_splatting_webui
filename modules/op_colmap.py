@@ -12,10 +12,10 @@ from pathlib import Path
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 SCRIPTS_FOLDER = os.path.join(ROOT_DIR, "scripts")
 
-def metashap_process(metashape_bin_path, metashape_process_steps, metashape_cmd_args, project_folder):
+def metashap_process(metashape_bin_path, metashape_process_steps, cameras_file, metashape_cmd_args, project_folder):
     metashape_script_file = r'.\modules\extra_metashape_workflow.py'
-    
-    command = r"%s -r %s %s %s" % (metashape_bin_path, metashape_script_file, project_folder, metashape_process_steps)
+    metashape_process_steps = ','.join(metashape_process_steps)
+    command = r"%s -r %s %s %s %s" % (metashape_bin_path, metashape_script_file, project_folder, metashape_process_steps, cameras_file)
     # command = [metashape_bin_path, "-r", metashape_script_file, project_folder, metashape_process_steps]
 
     print (command)
@@ -133,36 +133,56 @@ def colmap_model_converter(colmap_bin_path, project_folder):
     
     print ("========== colmap_model_converter Finished ==========")
 
-def run_colmap_project(project_folder, process_steps, \
+def run_colmap_project(project_folder, process_steps, batch_folder, \
     colmap_bin_path, colmap_matcher, colmap_camera_model, colmap_camera_params, vocab_path, aabb_scale, colmap_cmd_args, \
     gs_repo_path, gs_cmd_args, \
-    metashape_bin_path, metashape_process_steps, metashape_cmd_args):
+    metashape_bin_path, metashape_process_steps, cameras_file, metashape_cmd_args):
     
     if 'colmap' in process_steps:
         if not Path(colmap_bin_path).is_file():
             return print("can't find colmap binary")
+        project_folders = [project_folder]
+        if batch_folder:
+            root = Path(project_folders[0])
+            project_folders = [p for p in root.iterdir() if p.is_dir()]
         
-        create_project_folders(project_folder)
-        colmap_feature_extractor (colmap_bin_path, project_folder, colmap_camera_model, colmap_camera_params)
-        colmap_match(colmap_bin_path, project_folder, colmap_matcher, vocab_path)
-        colmap_mapper(colmap_bin_path, project_folder)
-        colmap_bundle_adjuster(colmap_bin_path, project_folder)
-        colmap_model_converter(colmap_bin_path, project_folder)
-        camera_data = get_camera_data(project_folder)
-        export_transforms_data(project_folder, aabb_scale, camera_data)
-        
+        for folder in project_folders:
+            print ("processing colmap with %s " % folder)
+            create_project_folders(folder)
+            colmap_feature_extractor (colmap_bin_path, folder, colmap_camera_model, colmap_camera_params)
+            colmap_match(colmap_bin_path, folder, colmap_matcher, vocab_path)
+            colmap_mapper(colmap_bin_path, folder)
+            colmap_bundle_adjuster(colmap_bin_path, folder)
+            colmap_model_converter(colmap_bin_path, folder)
+            camera_data = get_camera_data(folder)
+            export_transforms_data(folder, aabb_scale, camera_data)
+            
         print ("========== images colmap Finished ==========")
         
     if 'metashape' in process_steps:
         if not Path(metashape_bin_path).is_file():
             return print("can't find metashape binary")
         
-        metashap_process(metashape_bin_path, metashape_process_steps, metashape_cmd_args, project_folder)
+        project_folders = [project_folder]
+        if batch_folder:
+            root = Path(project_folders[0])
+            project_folders = [p for p in root.iterdir() if p.is_dir()]
+        
+        for folder in project_folders:
+            print ("metashape with %s " % folder)
+            metashap_process(metashape_bin_path, metashape_process_steps, cameras_file, metashape_cmd_args, folder)
         
         print ("========== Metashape process Finished ==========")
         
     if 'train gaussian splatting' in process_steps:
-        train_gaussian_splatting(gs_repo_path, project_folder, colmap_cmd_args)
+        project_folders = [project_folder]
+        if batch_folder:
+            root = Path(project_folders[0])
+            project_folders = [p for p in root.iterdir() if p.is_dir()]
+        
+        for folder in project_folders:
+            print ("training gs with %s " % folder)
+            train_gaussian_splatting(gs_repo_path, folder, colmap_cmd_args)
         
         print ("========== train gaussian splatting Finished ==========")
     

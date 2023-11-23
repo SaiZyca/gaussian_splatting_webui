@@ -6,6 +6,7 @@ def train_gaussian_splatting(gs_repo_path, project_folder, cmd_args):
     model_path = r"%s\gs" % project_folder
     
     command = "python %s --source_path %s --model_path %s %s" % (trainer_path, project_folder, model_path, cmd_args)
+    print (command)
     
     try:
         result = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE).stdout.read()

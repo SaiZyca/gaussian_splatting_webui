@@ -34,11 +34,13 @@ def colmap_ui():
                     metashape_cmd_args = gr.Textbox(label='metashape cmd args', value="", scale=2)
                 with gr.Row():
                     metashape_process_steps = gr.CheckboxGroup(label='Metashape Process steps',\
-                        choices=['alignCameras','buildModel','buildTexture'], \
-                        value=['alignCameras'])
+                        choices=['alignCameras', 'importCameras','buildModel','buildTexture','exportModel'], \
+                        value=['alignCameras'], scale=2)
+                    cameras_file = gr.Textbox(label='xml Camera file path')
         with gr.Group():
             with gr.Row():
-                project_folder = gr.Textbox(label="Project Folder",  placeholder="Project Folder with /images", show_label=False)
+                batch_folder = gr.Checkbox(label="Batch Mode", value=False, interactive=True, elem_id='middle_checker')
+                project_folder = gr.Textbox(label="Project Folder",  placeholder="Project Folder with /images", show_label=False, scale=8)
                 project_folder_button = gr.Button(symbols.folder_symbol, elem_id='open_folder_small')
             with gr.Row():
                 process_steps = gr.CheckboxGroup(label='Process steps',choices=['colmap', 'metashape','train gaussian splatting'], value=['metashape'])
@@ -51,10 +53,10 @@ def colmap_ui():
                                 show_progress="hidden")
         
         process_btn.click(op_colmap.run_colmap_project,
-                                    inputs=[project_folder, process_steps, \
+                                    inputs=[project_folder, process_steps, batch_folder, \
                                             colmap_bin_path, colmap_matcher, colmap_camera_model, colmap_camera_params, vocab_path, aabb_scale, colmap_cmd_args, \
                                             gs_repo_path, gs_cmd_args, \
-                                            metashape_bin_path, metashape_process_steps, metashape_cmd_args],
+                                            metashape_bin_path, metashape_process_steps, cameras_file, metashape_cmd_args],
                                     outputs=[process_log],
                                     )      
 

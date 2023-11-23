@@ -19,3 +19,8 @@
     padding-left: 0.75em;
     padding-right: 0.75em;
 }
+
+#middle_checker{
+    min-width: auto;
+    padding-top: 1.55em;
+}

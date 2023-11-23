@@ -11,15 +11,16 @@ if found_major_version != compatible_major_version:
 def find_files(folder, types):
     return [entry.path for entry in os.scandir(folder) if (entry.is_file() and os.path.splitext(entry.name)[1].lower() in types)]
 
-if len(sys.argv) < 3:
-    print("Usage: general_workflow.py <project_folder> <metashape_process_steps>")
+if len(sys.argv) < 4:
+    print("Usage: general_workflow.py <project_folder> <metashape_process_steps> <cameras_file>")
     raise Exception("Invalid script arguments")
 
 project_folder = sys.argv[1]
 process_steps = sys.argv[2]
+cameras_file = sys.argv[3]
 
-def metashape_procsee(project_folder, process_steps=[]):
-    # inital
+
+def init_chunk(project_folder):
     doc = Metashape.Document()
     doc.save("%s/project.psx" % project_folder)
     
@@ -29,59 +30,100 @@ def metashape_procsee(project_folder, process_steps=[]):
     chunk.addPhotos(photos)
     
     doc.save()
+    
+    return chunk, doc
 
+def align_cameras(chunk, doc):
+    chunk.matchPhotos(keypoint_limit = 40000, tiepoint_limit = 10000, generic_preselection = True, reference_preselection = True)
+    chunk.alignCameras()
+    doc.save()
+    
+    print ("========== metashape alignCameras Finished ==========")
+    return chunk, doc
+
+def import_cameras(chunk, doc, cameras_file):
+    chunk.importCameras(path=cameras_file, image_orientation=0)
+    chunk.matchPhotos(downscale = 1, generic_preselection=True, reference_preselection=False, keypoint_limit_per_mpx=4000, tiepoint_limit=0, guided_matching=True, reset_matches = False)
+    chunk.triangulateTiePoints()
+    doc.save()
+    
+    print ("========== metashape importCameras Finished ==========")
+    return chunk, doc
+
+def build_model(chunk, doc):
+    chunk.buildDepthMaps(downscale = 2, filter_mode = Metashape.MildFiltering)
+    chunk.buildModel(source_data = Metashape.DepthMapsData)
+    doc.save()
+
+    has_transform = chunk.transform.scale and chunk.transform.rotation and chunk.transform.translation
+
+    if has_transform:
+        chunk.buildPointCloud()
+        doc.save()
+
+        chunk.buildDem(source_data=Metashape.PointCloudData)
+        doc.save()
+
+        chunk.buildOrthomosaic(surface_data=Metashape.ElevationData)
+        doc.save()
+        
+    doc.save()
+    print ("========== metashape buildModel Finished ==========")
+    return chunk, doc
+
+def build_texture(chunk, doc):
+    chunk.buildUV(page_count = 2, texture_size = 4096)
+    chunk.buildTexture(texture_size = 4096, ghosting_filter = True)
+    doc.save()
+    
+    print ("========== metashape buildTexture Finished ==========")
+    return chunk, doc
+
+def export_model(chunk, project_folder):
+    output_folder = "%s/output" % project_folder
+    chunk.exportReport(output_folder + '/report.pdf')
+
+    if chunk.model:
+        chunk.exportModel(output_folder + '/model.fbx', embed_texture=False, save_cameras=True, shift=Metashape.Vector((0,0,0)), save_comment=False)
+
+    if chunk.point_cloud:
+        chunk.exportPointCloud(output_folder + '/point_cloud.las', source_data = Metashape.PointCloudData)
+
+    if chunk.elevation:
+        chunk.exportRaster(output_folder + '/dem.tif', source_data = Metashape.ElevationData)
+
+    if chunk.orthomosaic:
+        chunk.exportRaster(output_folder + '/orthomosaic.tif', source_data = Metashape.OrthomosaicData)
+
+    print('Processing finished, results saved to ' + output_folder + '.')
+    return chunk
+
+def metashape_procsee(project_folder, process_steps=[], cameras_file=""):
+    # inital
+    chunk, doc = init_chunk(project_folder)
+    process_steps = process_steps.replace("[", "").replace("]", "").replace("'", "").replace(", ", ",")
+    process_steps = process_steps.split(',')
+    
+    # print (type(process_steps), process_steps)
     # print(str(len(chunk.cameras)) + " images loaded")
 
     if 'alignCameras' in process_steps:
-        chunk.matchPhotos(keypoint_limit = 40000, tiepoint_limit = 10000, generic_preselection = True, reference_preselection = True)
-        chunk.alignCameras()
-        doc.save()
-        
-        print ("========== metashape alignCameras Finished ==========")
-        
+        chunk, doc = align_cameras(chunk, doc)
+
+    if 'importCameras' in process_steps:
+        chunk, doc = import_cameras(chunk, doc, cameras_file)
+
     if 'buildModel' in process_steps:
-        chunk.buildDepthMaps(downscale = 2, filter_mode = Metashape.MildFiltering)
-        chunk.buildModel(source_data = Metashape.DepthMapsData)
-        doc.save()
-        
-        print ("========== metashape buildModel Finished ==========")
-
-        has_transform = chunk.transform.scale and chunk.transform.rotation and chunk.transform.translation
-
-        if has_transform:
-            chunk.buildPointCloud()
-            doc.save()
-
-            chunk.buildDem(source_data=Metashape.PointCloudData)
-            doc.save()
-
-            chunk.buildOrthomosaic(surface_data=Metashape.ElevationData)
-            doc.save()
+        chunk, doc = build_model(chunk, doc)
 
     if 'buildTexture' in process_steps:
-        chunk.buildUV(page_count = 2, texture_size = 4096)
-        chunk.buildTexture(texture_size = 4096, ghosting_filter = True)
-        doc.save()
+        chunk, doc = build_texture(chunk, doc)
         
-        print ("========== metashape buildTexture Finished ==========")
     # export results
-    if "export" in process_steps:
-        output_folder = "%s/output" % project_folder
-        chunk.exportReport(output_folder + '/report.pdf')
-
-        if chunk.model:
-            chunk.exportModel(output_folder + '/model.obj')
-
-        if chunk.point_cloud:
-            chunk.exportPointCloud(output_folder + '/point_cloud.las', source_data = Metashape.PointCloudData)
-
-        if chunk.elevation:
-            chunk.exportRaster(output_folder + '/dem.tif', source_data = Metashape.ElevationData)
-
-        if chunk.orthomosaic:
-            chunk.exportRaster(output_folder + '/orthomosaic.tif', source_data = Metashape.OrthomosaicData)
-
-        print('Processing finished, results saved to ' + output_folder + '.')
+    if "exportModel" in process_steps:
+       chunk = export_model(chunk, project_folder)
+       
+    doc.save()
 
     return chunk
 
@@ -444,5 +486,5 @@ def export_for_gaussian_splatting(output_folder, chunk, params = ExportScenePara
 label = "Scripts/Export Colmap project (for Gaussian Splatting)"
 print("To execute this script press {}".format(label))
 
-matched_chunk = metashape_procsee(project_folder, process_steps)
+matched_chunk = metashape_procsee(project_folder, process_steps, cameras_file)
 export_for_gaussian_splatting(project_folder, matched_chunk)
