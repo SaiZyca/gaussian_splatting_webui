@@ -15,13 +15,13 @@ SCRIPTS_FOLDER = os.path.join(ROOT_DIR, "scripts")
 def metashap_process(metashape_bin_path, metashape_process_steps, cameras_file, metashape_cmd_args, project_folder):
     metashape_script_file = r'.\modules\extra_metashape_workflow.py'
     metashape_process_steps = ','.join(metashape_process_steps)
+    if cameras_file == "":
+        cameras_file = '""'
     command = r"%s -r %s %s %s %s" % (metashape_bin_path, metashape_script_file, project_folder, metashape_process_steps, cameras_file)
-    # command = [metashape_bin_path, "-r", metashape_script_file, project_folder, metashape_process_steps]
-
-    print (command)
+    # command = [metashape_bin_path, "-r", metashape_script_file, project_folder, metashape_process_steps]        
     subprocess.run(command)
     
-    print ("========== train_gaussian_splatting Finished ==========")
+    print ("========== metashap_process Finished ==========")
     
 
 

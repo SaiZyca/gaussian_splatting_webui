@@ -45,7 +45,7 @@ def colmap_ui():
             with gr.Row():
                 process_steps = gr.CheckboxGroup(label='Process steps',choices=['colmap', 'metashape','train gaussian splatting'], value=['metashape'])
             process_btn = gr.Button(value="Process")
-            process_log = gr.Textbox(value="log")
+            process_log = gr.Textbox(value="log", show_label=False )
         
         project_folder_button.click(op_tinker.folder_browser,
                                 inputs=[], 
